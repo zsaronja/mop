@@ -1,0 +1,21 @@
+# Cart Service
+
+## Run
+docker compose up -d
+mvn spring-boot:run
+
+## Check App is running
+http://localhost:8080/actuator/health
+
+## Endpoints
+GET /cart/{userId}
+POST /cart/{userId}/items
+
+## Test API service
+POST http://localhost:8080/cart/1/items
+
+## Tech
+- Spring Boot
+- Redis
+- PostgreSQL
+- Docker
