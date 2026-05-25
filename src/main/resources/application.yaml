@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: mop
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mop_cart_db
+    username: user
+    password: pass
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8080

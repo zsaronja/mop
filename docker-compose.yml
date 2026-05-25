@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: mop-cart-postgres
+    environment:
+      POSTGRES_DB: mop_cart_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    container_name: mop-cart-redis
+    ports:
+      - "6379:6379"
