@@ -1,6 +1,10 @@
 services:
   postgres:
     image: postgres:15
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      retries: 5
     container_name: mop-cart-postgres
     environment:
       POSTGRES_DB: mop_cart_db
@@ -14,3 +18,12 @@ services:
     container_name: mop-cart-redis
     ports:
       - "6379:6379"
+
+  cart-service:
+    build: .
+    container_name: mop-cart-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
