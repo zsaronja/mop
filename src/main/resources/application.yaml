@@ -17,6 +17,12 @@ spring:
       host: redis
       port: 6379
 
+  security:
+      oauth2:
+        resourceserver:
+          jwt:
+            jwk-set-uri: http://keycloak:8080/realms/mop/protocol/openid-connect/certs
+
 server:
   port: 8080
 

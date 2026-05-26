@@ -1,8 +1,10 @@
 package hr.pacman.mop.service;
 
+import hr.pacman.mop.dto.CartResponse;
 import hr.pacman.mop.model.Cart;
 import hr.pacman.mop.model.CartItem;
 import hr.pacman.mop.repository.CartRepository;
+import hr.pacman.mop.mapper.CartMapper;
 import lombok.RequiredArgsConstructor;
 
 import java.util.concurrent.TimeUnit;
@@ -19,7 +21,7 @@ public class CartServiceImpl implements CartService {
 
     private static final Logger logger = LoggerFactory.getLogger(CartServiceImpl.class);
 
-    private final RedisTemplate<String, Cart> redisTemplate;
+    private final RedisTemplate<String, CartResponse> redisTemplate;
     private final CartRepository cartRepository;
 
     private static final String CART_KEY_PREFIX = "cart:";
@@ -27,53 +29,52 @@ public class CartServiceImpl implements CartService {
 
     @CircuitBreaker(name = "redisService", fallbackMethod = "getCartFromDb")
     @Override
-    public Cart getCart(String userId) {
+    public CartResponse getCart(String userId) {
         String key = CART_KEY_PREFIX + userId;
-        Cart cart = null;
+        CartResponse cartResponse = null;
         // 1. pokušaj Redis
         try {
-            cart = redisTemplate.opsForValue().get(key);
+            cartResponse = redisTemplate.opsForValue().get(key);
         } catch (Exception e) {
             logger.warn("Redis is down, fallback to DB ");
             logger.warn("Error accessing Redis for userId {}: {}", userId, e.getMessage());
         }
 
-        if (cart == null) {
+        if (cartResponse == null) {
             // 2. fallback DB
             try {
-                cart = cartRepository.findById(userId == null ? "" : userId).orElse(new Cart(userId));
+
+                Cart cart = cartRepository.findById(userId).orElse(new Cart(userId));
+                cartResponse = CartMapper.toDto(cart);
             } catch (Exception e) {
                 logger.error("DB failed as well");
                 logger.error("Error accessing cart for userId {}: {}", userId, e.getMessage());
                 e.printStackTrace();
             }
-
+            redisTemplate.opsForValue().set(key, cartResponse, TTL_MINUTES, TimeUnit.MINUTES);
         }
-
-        return cart;
+        return cartResponse;
     }
 
-    public Cart getCartFromDb(String userId, Exception ex) {
+    public CartResponse getCartFromDb(String userId, Exception ex) {
         logger.error("Redis failed, fallback to DB");
 
-        return cartRepository.findById(userId).orElse(new Cart(userId));
+        Cart cart = cartRepository.findById(userId)
+                .orElse(new Cart(userId));
+
+        CartResponse response = CartMapper.toDto(cart);
+
+        return response;
+
     }
 
     @Override
     @CircuitBreaker(name = "redisService", fallbackMethod = "addItemFallback")
-    public Cart addItem(String userId, CartItem item) {
+    public CartResponse addItem(String userId, CartItem item) {
 
-        Cart cart = getCart(userId);
+        Cart cart = cartRepository.findById(userId).orElseGet(() -> new Cart(userId));
 
         cart.addItem(item);
-
-        // save to Redis
-        try {
-            redisTemplate.opsForValue().set(CART_KEY_PREFIX + userId, cart, TTL_MINUTES, TimeUnit.MINUTES);
-        } catch (Exception e) {
-            logger.error("Redis unavailable, skipping cache");
-            e.printStackTrace();
-        }
 
         // save to DB
         try {
@@ -84,31 +85,34 @@ public class CartServiceImpl implements CartService {
             e.printStackTrace();
         }
 
-        return cart;
-    }
-
-    public Cart addItemFallback(String userId, CartItem item, Exception ex) {
-        Cart cart = cartRepository.findById(userId).orElse(new Cart(userId));
-        cart.addItem(item);
-        cartRepository.save(cart);
-
-        return cart;
-    }
-
-    @Override
-    public Cart removeItem(String userId, String productId, int quantity) {
-
-        Cart cart = getCart(userId);
-
-        cart.removeItem(productId, quantity);
+        CartResponse response = CartMapper.toDto(cart);
 
         // save to Redis
         try {
-            redisTemplate.opsForValue().set(CART_KEY_PREFIX + userId, cart, TTL_MINUTES, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(CART_KEY_PREFIX + userId, response, TTL_MINUTES, TimeUnit.MINUTES);
         } catch (Exception e) {
-            logger.warn("Redis unavailable, skipping cache");
+            logger.error("Redis unavailable, skipping cache");
             e.printStackTrace();
         }
+
+        return response;
+    }
+
+    public CartResponse addItemFallback(String userId, CartItem item, Exception ex) {
+        Cart cart = cartRepository.findById(userId).orElse(new Cart(userId));
+
+        cart.addItem(item);
+        cartRepository.save(cart);
+
+        return CartMapper.toDto(cart);
+    }
+
+    @Override
+    public CartResponse removeItem(String userId, String productId, Integer quantity) {
+
+        Cart cart = cartRepository.findById(userId).orElse(new Cart(userId));
+
+        cart.removeItem(productId, quantity);
 
         // save to DB
         try {
@@ -120,6 +124,17 @@ public class CartServiceImpl implements CartService {
             e.printStackTrace();
         }
 
-        return cart;
+        CartResponse response = CartMapper.toDto(cart);
+
+        // save to Redis
+        try {
+            redisTemplate.opsForValue().set(CART_KEY_PREFIX + userId, response, TTL_MINUTES, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            logger.warn("Redis unavailable, skipping cache");
+            e.printStackTrace();
+        }
+
+        return response;
     }
+
 }

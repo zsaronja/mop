@@ -25,6 +25,15 @@ public class Cart {
         this.userId = userId;
     }
 
+    @PostLoad
+    private void onLoad() {
+        items.values().forEach(item -> item.setCart(this));
+    }
+
+    public void addItem(Cart newItem) {
+        throw new UnsupportedOperationException("Use addItem(CartItem)");
+    }
+
     public void addItem(CartItem newItem) {
         CartItem existing = items.get(newItem.getProductId());
         if (existing != null) {
