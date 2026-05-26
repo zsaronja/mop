@@ -26,3 +26,11 @@ logging:
     "[com.example.mop]": DEBUG
     "[org.springframework.data.redis]": DEBUG
     "[org.hibernate.SQL]": DEBUG
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      redisService:
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s

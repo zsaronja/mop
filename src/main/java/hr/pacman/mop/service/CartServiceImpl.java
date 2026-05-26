@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ public class CartServiceImpl implements CartService {
     private static final String CART_KEY_PREFIX = "cart:";
     private static final long TTL_MINUTES = 30;
 
+    @CircuitBreaker(name = "redisService", fallbackMethod = "getCartFromDb")
     @Override
     public Cart getCart(String userId) {
         String key = CART_KEY_PREFIX + userId;
@@ -51,7 +53,14 @@ public class CartServiceImpl implements CartService {
         return cart;
     }
 
+    public Cart getCartFromDb(String userId, Exception ex) {
+        logger.error("Redis failed, fallback to DB");
+
+        return cartRepository.findById(userId).orElse(new Cart(userId));
+    }
+
     @Override
+    @CircuitBreaker(name = "redisService", fallbackMethod = "addItemFallback")
     public Cart addItem(String userId, CartItem item) {
 
         Cart cart = getCart(userId);
@@ -74,6 +83,14 @@ public class CartServiceImpl implements CartService {
             logger.error("Error adding item {} to cart for userId {}: {}", item.getProductId(), userId, e.getMessage());
             e.printStackTrace();
         }
+
+        return cart;
+    }
+
+    public Cart addItemFallback(String userId, CartItem item, Exception ex) {
+        Cart cart = cartRepository.findById(userId).orElse(new Cart(userId));
+        cart.addItem(item);
+        cartRepository.save(cart);
 
         return cart;
     }
