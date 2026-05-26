@@ -1,38 +1,39 @@
 package hr.pacman.mop.model;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.Map;
+import java.util.HashMap;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "cart")
 @Data
 @NoArgsConstructor
+
 public class Cart {
 
     @Id
     private String userId;
 
-    @ElementCollection
-    private List<CartItem> items = new ArrayList<>();
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+    @MapKey(name = "productId")
+    private Map<String, CartItem> items = new HashMap<>();
 
     public Cart(String userId) {
         this.userId = userId;
-        this.items = new ArrayList<>();
     }
 
     public void addItem(CartItem newItem) {
-
-        for (CartItem item : items) {
-            if (Objects.equals(item.getProductId(), newItem.getProductId())) {
-                item.setQuantity(item.getQuantity() + newItem.getQuantity());
-                return;
-            }
+        CartItem existing = items.get(newItem.getProductId());
+        if (existing != null) {
+            existing.setQuantity(existing.getQuantity() + newItem.getQuantity());
+        } else {
+            newItem.setCart(this);
+            items.put(newItem.getProductId(), newItem);
         }
-        items.add(newItem);
+
     }
 
     public void removeItem(String productId, int quantityToRemove) {
@@ -40,24 +41,18 @@ public class Cart {
             throw new IllegalArgumentException("Quantity must be positive");
         }
 
-        for (CartItem item : items) {
-            if (Objects.equals(item.getProductId(), productId)) {
-
-                int quantityAvailable = item.getQuantity();
-                if (quantityToRemove > quantityAvailable) {
-                    throw new IllegalArgumentException("Not enough quantity to remove");
-                }
-
-                int remaining = quantityAvailable - quantityToRemove;
-
-                if (remaining > 0) {
-                    item.setQuantity(remaining);
-                } else {
-                    items.remove(item);
-                }
-                return;
+        CartItem item = items.get(productId);
+        if (item != null) {
+            int quantityAvailable = item.getQuantity();
+            if (quantityToRemove > quantityAvailable) {
+                throw new IllegalArgumentException("Not enough quantity to remove");
+            }
+            int remaining = quantityAvailable - quantityToRemove;
+            if (remaining > 0) {
+                item.setQuantity(remaining);
+            } else {
+                items.remove(productId);
             }
         }
     }
-
 }
