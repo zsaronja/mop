@@ -1,6 +1,6 @@
 package hr.pacman.mop.config;
 
-import hr.pacman.mop.model.Cart;
+import hr.pacman.mop.dto.CartResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -11,14 +11,17 @@ import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSeriali
 public class RedisConfig {
 
     @Bean
-    public RedisTemplate<String, Cart> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Cart> template = new RedisTemplate<>();
+    public RedisTemplate<String, CartResponse> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, CartResponse> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
         // JSON serializer
         GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer();
+        template.setValueSerializer(serializer);
 
-        template.setDefaultSerializer(serializer);
+        template.setKeySerializer(template.getStringSerializer());
+
+        template.afterPropertiesSet();
 
         return template;
     }

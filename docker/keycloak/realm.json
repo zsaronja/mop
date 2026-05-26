@@ -1,0 +1,31 @@
+{
+  "realm": "mop",
+  "enabled": true,
+  "users": [
+    {
+      "username": "test",
+      "enabled": true,
+      "email": "test@test.com",
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test",
+          "temporary": false
+        }
+      ]
+    }
+  ],
+
+  "clients": [
+    {
+      "clientId": "cart-service",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true
+    }
+  ]
+}

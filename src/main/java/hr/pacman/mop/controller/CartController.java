@@ -1,10 +1,12 @@
 package hr.pacman.mop.controller;
 
-import hr.pacman.mop.model.Cart;
+import hr.pacman.mop.dto.CartResponse;
 import hr.pacman.mop.model.CartItem;
 import hr.pacman.mop.service.CartService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 @RestController
 @RequestMapping("/cart")
@@ -13,21 +15,31 @@ public class CartController {
 
     private final CartService cartService;
 
-    @GetMapping("/{userId}")
-    public Cart getCart(@PathVariable String userId) {
-        return cartService.getCart(userId);
+    @GetMapping
+    public CartResponse getCart(@AuthenticationPrincipal Jwt jwt) {
+
+        return addPreferredUsername(cartService.getCart(jwt.getSubject()), jwt);
     }
 
-    @PostMapping("/{userId}/items")
-    public Cart addItem(@PathVariable String userId,
+    @PostMapping("/items")
+    public CartResponse addItem(@AuthenticationPrincipal Jwt jwt,
             @RequestBody CartItem item) {
-        return cartService.addItem(userId, item);
+
+        return addPreferredUsername(cartService.addItem(jwt.getSubject(), item), jwt);
     }
 
-    @DeleteMapping("/{userId}/items/{productId}")
-    public Cart removeItem(@PathVariable String userId,
+    @DeleteMapping("/items/{productId}")
+    public CartResponse removeItem(@AuthenticationPrincipal Jwt jwt,
             @PathVariable String productId,
             @RequestParam int quantity) {
-        return cartService.removeItem(userId, productId, quantity);
+
+        return addPreferredUsername(cartService.removeItem(jwt.getSubject(), productId, quantity), jwt);
+
     }
+
+    private CartResponse addPreferredUsername(CartResponse response, Jwt jwt) {
+        response.setUsername(jwt.getClaimAsString("preferred_username"));
+        return response;
+    }
+
 }
