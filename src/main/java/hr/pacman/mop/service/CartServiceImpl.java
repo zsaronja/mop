@@ -1,6 +1,8 @@
 package hr.pacman.mop.service;
 
 import hr.pacman.mop.dto.CartResponse;
+import hr.pacman.mop.kafka.CartEvent;
+import hr.pacman.mop.kafka.CartEventProducer;
 import hr.pacman.mop.model.Cart;
 import hr.pacman.mop.model.CartItem;
 import hr.pacman.mop.repository.CartRepository;
@@ -23,7 +25,7 @@ public class CartServiceImpl implements CartService {
 
     private final RedisTemplate<String, CartResponse> redisTemplate;
     private final CartRepository cartRepository;
-
+    private final CartEventProducer cartEventProducer;
     private static final String CART_KEY_PREFIX = "cart:";
     private static final long TTL_MINUTES = 30;
 
@@ -85,6 +87,16 @@ public class CartServiceImpl implements CartService {
             e.printStackTrace();
         }
 
+        
+        cartEventProducer.sendEvent(
+                new CartEvent(
+                        userId,
+                        item.getProductId(),
+                        item.getQuantity(),
+                        "ADD"
+                )
+        );
+
         CartResponse response = CartMapper.toDto(cart);
 
         // save to Redis
@@ -123,7 +135,14 @@ public class CartServiceImpl implements CartService {
                     e.getMessage());
             e.printStackTrace();
         }
-
+        cartEventProducer.sendEvent(
+                new CartEvent(
+                        userId,
+                        productId,
+                        quantity,
+                        "REMOVE"
+                )
+        );
         CartResponse response = CartMapper.toDto(cart);
 
         // save to Redis

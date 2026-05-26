@@ -1,11 +1,48 @@
 name: Build
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Build
-        run: mvn clean install
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Set up Java 17
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # Cache Maven dependencies to speed up builds
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # Build project
+      - name: Build project
+        run: mvn clean install -DskipTests
+
+      # Run tests (you can remove -DskipTests from the previous step if you want to run tests during the build)
+      - name: Run tests
+        run: mvn test
+
+      # Build Docker image
+      - name: Build Docker image
+        run: docker build -t cart-service .
